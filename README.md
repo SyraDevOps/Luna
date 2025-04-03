@@ -165,12 +165,3 @@ chat = LunaChat("meu_modelo", persona="casual")
 resposta = chat.generate("Como funciona a Lua?")
 print(resposta)  # Saída: "A Lua orbita a Terra..."
 ```
-
----
-
-## Referências
- Modelo de e-commerce Luna  
- Regras de negócio baseadas em ciclos lunares  
- Arquitetura MoE vs Discriminativa  
- Módulo de segurança HSM Luna PCIe
-```
