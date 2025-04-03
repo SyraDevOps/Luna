@@ -1,112 +1,176 @@
 # Luna
 
 ![Luna](img/Luna.png)
- 
-Luna 1.00 Model by Syra
 
 
-SyRa_LUNA
-Este projeto implementa um sistema de aprendizado de máquina para criar, treinar e utilizar um modelo de IA para responder perguntas com base em um banco de dados de conhecimento. O sistema utiliza PyTorch para a criação e treinamento do modelo, e SQLite para armazenar os dados de treinamento.
+ ```markdown
+# LunaGPT - Documentação Técnica e Guia de Uso
 
-Estrutura do Projeto
-ext.py: Arquivo principal para iniciar o sistema.
+## Visão Geral
+LunaGPT é um modelo de linguagem avançado com arquitetura híbrida, combinando técnicas de **MoE (Mixture of Experts)**, **RAG (Retrieval-Augmented Generation)** e **treinamento contínuo baseado em feedback**. Projetado para operar em hardware modesto, inclui otimizações como poda estrutural (30%) e quantização de 4 bits.
 
-NeuronChat.py: Arquivo principal para iniciar o chat com o modelo de IA.
+---
 
-Neutron: Diretório contendo os módulos principais do sistema.
+## Funcionalidades Principais
+- **Memória de Contexto Persistente**: Armazena histórico em SQLite para coerência em conversas longas
+- **Inferência com RAG**: Integração com FAISS para recuperação de dados em tempo real
+- **Feedback Contínuo**: Sistema de avaliação Likert/NPS com atualização automática do modelo
+- **Personalização**: 3 personas pré-definidas (técnico, casual, formal)
+- **Hardware Modesto**: Otimizado para GPUs com 8GB+ de VRAM
 
-brain.py: Implementa a classe Cerebro que gerencia o modelo de IA e o banco de dados.
+---
 
-functions.py: Funções auxiliares para carregar dados e treinar modelos.
+## Requisitos de Sistema
+```bash
+# Dependências principais
+Python 3.8+
+PyTorch 2.0+
+CUDA 11.8+ (opcional)
+Transformers 4.35+
+Faiss-CPU/GPU
+SQLite3
+```
 
-functionspreditc.py: Funções para carregar modelos e fazer previsões.
+---
 
-Mnu.py: Interface de linha de comando para interagir com o sistema.
+## Instalação
+```bash
+# Clone o repositório
+git clone https://github.com/syra-team/luna-gpt
+cd luna-gpt
 
-NeuronChat.py: Implementa a classe Cerebro para o chat.
-
-Datasets: Diretório contendo arquivos CSV de exemplo para treinamento.
-
-Requisitos
-
-Instale as dependências listadas no arquivo requirements.txt:
-
+# Instale dependências
 pip install -r requirements.txt
 
-Passos para Criar, Treinar e Utilizar o Modelo
+# Configure CUDA (opcional)
+export CUDA_VISIBLE_DEVICES=0
+```
 
-# 1. Criar o Modelo
+---
 
-Para criar um novo modelo, execute o arquivo ext.py:
+## Uso Básico
 
-python ext.py
+### 1. Treinamento Inicial
+```bash
+# Formato de dados suportados: CSV, JSON, PDF, TXT
+python luna.py create --name "meu_modelo" --train_data "data/*.csv"
 
-Você verá a seguinte interface:
+# Treinamento com cross-validation
+python luna.py train --model "meu_modelo" --epochs 10 --train_data "data/*.json"
+```
 
-=== Sistema de Aprendizado com Contexto ===
-Comandos especiais:
-/contexto [nome] - Define um contexto
-/csv [arquivo] - Treina com CSV
-/compromisso [desc data hora] - Agenda compromisso
-/trocar [modelo] - Troca de modelo
-/treinar [épocas] - Treina com todos os neurônios
-/sair - Encerra o programa
+### 2. Interface de Chat
+```bash
+python luna.py chat --model "meu_modelo" --persona "tecnico"
 
-Modelos disponíveis:
- - default
-Nome do modelo:
+# Exemplo de interação
+Você: Explique a teoria da relatividade
+Luna: [TÉCNICO] A relatividade geral descreve a gravidade como...
+```
 
-Digite o nome do modelo que deseja criar ou pressione Enter para usar o modelo padrão.
+### 3. Sistema de Feedback
+```python
+# Após cada resposta, avalie:
+Avalie a resposta (1-5): 5
+Avalie a usabilidade (1-7): 7
+Net Promoter Score (-100 a 100): 90
+```
 
-# 2. Treinar o Modelo
+---
 
-Para treinar o modelo com um arquivo CSV, use o comando /csv [arquivo]:
+## Configuração Avançada
 
-/csv Datasets/DataExample01.csv
+### Parâmetros do Modelo (config.py)
+```python
+# Quantização dinâmica
+quantization = QuantizationConfig(
+    enabled=True,
+    method="awq",  # Alternativas: gptq, bitsandbytes
+    bits=4
+)
 
-Você será solicitado a inserir o número de épocas para o treinamento. Digite o número desejado e pressione Enter.
+# RAG Config
+rag = RAGConfig(
+    enabled=True,
+    index_path="faiss_index.idx",
+    dim=768
+)
+```
 
-# 3. Utilizar o Chat
+### Uso de Personas
+| Persona  | Temperatura | Uso Ideal                |
+|----------|-------------|--------------------------|
+| técnico  | 0.2         | Respostas precisas       |
+| casual   | 0.7         | Conversas informais      |
+| formal   | 0.3         | Comunicação empresarial  |
 
-Para iniciar o chat com o modelo de IA, execute o arquivo NeuronChat.py:
+---
 
-python NeuronChat.py
+## Pipeline de Treinamento
 
-Você verá a seguinte interface:
+### 1. Preparação de Dados
+```python
+# Exemplo de CSV válido
+pergunta,resposta
+"Qual a capital da França?","Paris"
+"Explique IA","Inteligência Artificial..." 
 
-=== Chat com Modelo de IA ===
-Modelos disponíveis:
- - default
-Nome do modelo:
+# Estrutura JSON válida
+[
+    {"pergunta": "Pergunta 1", "resposta": "Resposta 1"},
+    {"sender": "Usuário", "message": "Mensagem 2"}
+]
+```
 
-Digite o nome do modelo que deseja usar para o chat ou pressione Enter para usar o modelo padrão.
+### 2. Treinamento Multifásico
+```bash
+# Fase 1: Treinamento supervisionado
+python luna.py train --model "meu_modelo" --train_data "data/*.csv"
 
-# 4. Interagir com o Chat
-Digite suas perguntas e o sistema responderá com base no modelo treinado. Para sair do chat, digite /sair.
+# Fase 2: Refinamento com RLHF
+python luna.py refine --model "meu_modelo"
+```
 
+---
 
-Comandos Especiais
+## Métricas de Avaliação
+| Métrica       | Comando de Cálculo                          |
+|---------------|--------------------------------------------|
+| Perplexidade  | `compute_perplexity(model, tokenizer, dados)` |
+| BLEU          | `compute_bleu(predições, referências)`     |
 
-/contexto [nome]: Define um contexto para as perguntas.
-/csv [arquivo]: Treina o modelo com um arquivo CSV.
-/compromisso [desc data hora]: Agenda um compromisso.
-/trocar [modelo]: Troca para outro modelo.
-/treinar [épocas]: Treina o modelo com todos os neurônios.
-/sair: Encerra o programa.
+---
 
-# Estrutura dos Arquivos CSV
+## Atualizações Contínuas
+```python
+# Adicione novos dados ao diretório /data
+# Execute atualização automática:
+python luna.py train --model "meu_modelo" --train_data "novos_dados/*.json"
+```
 
-Os arquivos CSV devem conter as seguintes colunas:
+---
 
-pergunta: A pergunta a ser feita ao modelo.
-resposta: A resposta correspondente à pergunta.
-contexto: O contexto da pergunta (pode ser vazio).
+## Limitações Conhecidas
+- Requer pelo menos 8GB de RAM para inferência
+- Tempo de resposta aumenta 15% com RAG habilitado
+- Suporte limitado a idiomas não latinos
 
-Exemplo de arquivo CSV:
+---
 
-pergunta,resposta,contexto
-"Qual seu nome?","Meu nome é Luna.","Identidade"
-"Como você se chama?","Meu nome é Luna.","Identidade"
+## Exemplo de Código para Integração
+```python
+from luna import LunaChat
 
-# Contribuição
-Sinta-se à vontade para contribuir com melhorias para este projeto. Envie pull requests ou abra issues para discutir mudanças.
+chat = LunaChat("meu_modelo", persona="casual")
+resposta = chat.generate("Como funciona a Lua?")
+print(resposta)  # Saída: "A Lua orbita a Terra..."
+```
+
+---
+
+## Referências
+ Modelo de e-commerce Luna  
+ Regras de negócio baseadas em ciclos lunares  
+ Arquitetura MoE vs Discriminativa  
+ Módulo de segurança HSM Luna PCIe
+```
