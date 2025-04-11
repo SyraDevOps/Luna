@@ -1,6 +1,6 @@
 # LunaGPT: Sistema Avançado de Diálogo Neural Adaptativo
 
-![Luna](img/Luna.png)
+![Luna](img/Luna2.png)
 
 ## Índice Detalhado
 
