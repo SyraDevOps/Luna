@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LunaGPT Chat</title>
+    <style>
+        :root {
+            --user-color: #e9f5ff;
+            --user-text: #0a3d62;
+            --bot-color: #f0f7ee;
+            --bot-text: #306844;
+            --thinking-bg: #fcf5e9;
+            --thinking-text: #8d6e63;
+            --border-color: #ddd;
+            --header-bg: #2c3e50;
+            --header-text: #ecf0f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f5f7fa;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Estilo para o seletor de modelos */
+        .model-selector {
+            display: flex;
+            align-items: center;
+            background-color: rgba(255,255,255,0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .model-selector label {
+            margin-right: 0.5rem;
+            font-weight: bold;
+            color: var(--header-text);
+        }
+
+        .model-selector select {
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.3rem;
+            border: 1px solid var(--border-color);
+            background-color: white;
+            color: var(--header-bg);
+            font-weight: bold;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .thinking-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--thinking-bg);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .thinking-header {
+            padding: 0.5rem;
+            font-weight: bold;
+            color: var(--thinking-text);
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        .thinking-content {
+            font-family: monospace;
+            white-space: pre-wrap;
+            color: var(--thinking-text);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-bottom: 0.5rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--user-color);
+            color: var(--user-text);
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: var(--bot-color);
+            color: var(--bot-text);
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .message-header {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .message-content {
+            line-height: 1.5;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            background-color: white;
+        }
+
+        textarea {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            resize: none;
+            height: 60px;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: var(--header-bg);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0 1.5rem;
+            margin-left: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .timestamp {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            text-align: right;
+            margin-top: 0.3rem;
+        }
+
+        .no-models {
+            color: #e74c3c;
+            font-style: italic;
+        }
+
+        .system-message.warning {
+            display: flex;
+            align-items: center;
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #ffeeba;
+            margin-top: 1rem;
+        }
+
+        .warning-icon {
+            margin-right: 0.5rem;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .thinking-container {
+                height: 30vh;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LunaGPT Chat</h1>
+        <div class="model-selector">
+            <label for="model-select">Modelo:</label>
+            <select id="model-select">
+                {% if models %}
+                    {% for model in models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="" disabled>Nenhum modelo encontrado</option>
+                {% endif %}
+            </select>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message bot-message">
+                    <div class="message-header">LunaGPT</div>
+                    <div class="message-content">
+                        {% if models %}
+                            Olá! Sou a LunaGPT, sua assistente de IA especializada em português brasileiro. Como posso ajudar você hoje?
+                        {% else %}
+                            <span class="no-models">Nenhum modelo disponível. Por favor, crie um modelo usando a linha de comando antes de usar o chat.</span>
+                        {% endif %}
+                    </div>
+                    {% if not imports_ok %}
+                    <div class="system-message warning">
+                        <span class="warning-icon">⚠️</span>
+                        <span class="warning-text">Sistema inicializado em modo limitado. Alguns recursos podem não estar disponíveis.</span>
+                    </div>
+                    {% endif %}
+                    <div class="timestamp" id="current-time">{{ now }}</div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <textarea id="user-input" placeholder="Digite sua mensagem..." {% if not models %}disabled{% endif %}></textarea>
+                <button id="send-button" {% if not models %}disabled{% endif %}>Enviar</button>
+            </div>
+        </div>
+        
+        <div class="thinking-container">
+            <div class="thinking-header">Raciocínio do Modelo</div>
+            <div class="thinking-content" id="thinking-content">
+                Nenhum processamento realizado ainda. Quando você enviar uma mensagem, vou mostrar aqui como estou pensando para gerar a resposta.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos DOM
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const thinkingContent = document.getElementById('thinking-content');
+        const modelSelect = document.getElementById('model-select');
+        const currentTime = document.getElementById('current-time');
+        
+        // Atualizar hora atual
+        function updateCurrentTime() {
+            const now = new Date();
+            currentTime.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+        updateCurrentTime();
+        
+        // Função para adicionar mensagem ao chat
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = isUser ? 'message user-message' : 'message bot-message';
+            
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            header.textContent = isUser ? 'Você' : 'LunaGPT';
+            messageDiv.appendChild(header);
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            // Processar markdown básico
+            const formattedContent = formatMarkdown(content);
+            messageContent.innerHTML = formattedContent;
+            messageDiv.appendChild(messageContent);
+            
+            const timestamp = document.createElement('div');
+            timestamp.className = 'timestamp';
+            const now = new Date();
+            timestamp.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            messageDiv.appendChild(timestamp);
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Função para formatar markdown básico
+        function formatMarkdown(text) {
+            // Negrito
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Itálico
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Código inline
+            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Blocos de código
+            text = text.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+            
+            // Parágrafos
+            text = text.replace(/\n\n/g, '<br><br>');
+            
+            return text;
+        }
+        
+        // Função para mostrar indicador de digitação
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot-message typing-indicator';
+            typingDiv.id = 'typing-indicator';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('span');
+                typingDiv.appendChild(dot);
+            }
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Função para remover indicador de digitação
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        // Função para enviar mensagem
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message || sendButton.disabled) return;
+            
+            // Desabilitar interface durante processamento
+            sendButton.disabled = true;
+            userInput.disabled = true;
+            
+            // Limpar input
+            userInput.value = '';
+            
+            // Adicionar mensagem do usuário
+            addMessage(message, true);
+            
+            // Mostrar indicador de digitação
+            showTypingIndicator();
+            
+            // Atualizar área de pensamento
+            thinkingContent.textContent = 'Processando sua mensagem...';
+            
+            // Obter modelo selecionado
+            const selectedModel = modelSelect.value;
+            
+            try {
+                // Enviar requisição para o backend
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        model: selectedModel
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remover indicador de digitação
+                removeTypingIndicator();
+                
+                if (response.ok) {
+                    // Adicionar resposta
+                    addMessage(data.response);
+                    
+                    // Atualizar área de pensamento
+                    thinkingContent.textContent = data.thinking || 'Raciocínio não disponível';
+                } else {
+                    // Lidar com erro
+                    addMessage(`Erro: ${data.error || 'Algo deu errado'}`, false);
+                    thinkingContent.textContent = `Erro: ${data.error}\n${data.details || ''}`;
+                }
+            } catch (error) {
+                console.error('Erro ao comunicar com servidor:', error);
+                removeTypingIndicator();
+                addMessage('Desculpe, ocorreu um erro na comunicação com o servidor. Por favor, tente novamente.', false);
+                thinkingContent.textContent = `Erro de comunicação: ${error.message}`;
+            } finally {
+                // Reabilitar interface
+                sendButton.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
+            }
+        }
+        
+        // Event Listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Salvar o modelo selecionado em localStorage
+        modelSelect.addEventListener('change', () => {
+            localStorage.setItem('selectedModel', modelSelect.value);
+        });
+        
+        // Carregar modelo salvo (se existir)
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedModel = localStorage.getItem('selectedModel');
+            if (savedModel && Array.from(modelSelect.options).some(option => option.value === savedModel)) {
+                modelSelect.value = savedModel;
+            }
+            
+            // Verificar se há modelos disponíveis
+            if (modelSelect.options.length === 0 || (modelSelect.options.length === 1 && modelSelect.options[0].disabled)) {
+                userInput.disabled = true;
+                sendButton.disabled = true;
+                thinkingContent.textContent = "Nenhum modelo disponível. Por favor, crie um modelo usando a linha de comando antes de usar o chat.";
+            }
+        });
+    </script>
+</body>
+</html>
