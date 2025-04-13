@@ -1,0 +1,248 @@
+:root {
+    --user-color: #e9f5ff;
+    --user-text: #0a3d62;
+    --bot-color: #f0f7ee;
+    --bot-text: #306844;
+    --thinking-bg: #fcf5e9;
+    --thinking-text: #8d6e63;
+    --border-color: #ddd;
+    --header-bg: #2c3e50;
+    --header-text: #ecf0f1;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f5f7fa;
+}
+
+header {
+    background-color: var(--header-bg);
+    color: var(--header-text);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.model-selector {
+    display: flex;
+    align-items: center;
+}
+
+.model-selector label {
+    margin-right: 0.5rem;
+}
+
+.model-selector select {
+    padding: 0.3rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--border-color);
+}
+
+.main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.chat-container {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+}
+
+.thinking-container {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--thinking-bg);
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.thinking-header {
+    padding: 0.5rem;
+    font-weight: bold;
+    color: var(--thinking-text);
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 1rem;
+}
+
+.thinking-content {
+    font-family: monospace;
+    white-space: pre-wrap;
+    color: var(--thinking-text);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.message {
+    max-width: 80%;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: var(--user-color);
+    color: var(--user-text);
+    border-bottom-right-radius: 0.25rem;
+}
+
+.bot-message {
+    align-self: flex-start;
+    background-color: var(--bot-color);
+    color: var(--bot-text);
+    border-bottom-left-radius: 0.25rem;
+}
+
+.message-header {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.message-content {
+    line-height: 1.5;
+}
+
+.input-container {
+    display: flex;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    background-color: white;
+}
+
+textarea {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    resize: none;
+    height: 60px;
+    font-size: 1rem;
+}
+
+button {
+    background-color: var(--header-bg);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0 1.5rem;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #34495e;
+}
+
+button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+.timestamp {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    text-align: right;
+    margin-top: 0.3rem;
+}
+
+.typing-indicator {
+    display: flex;
+    padding: 1rem;
+}
+
+.typing-indicator span {
+    height: 10px;
+    width: 10px;
+    float: left;
+    margin: 0 1px;
+    background-color: var(--bot-text);
+    display: block;
+    border-radius: 50%;
+    opacity: 0.4;
+}
+
+.typing-indicator span:nth-of-type(1) {
+    animation: 1s blink infinite 0.3333s;
+}
+
+.typing-indicator span:nth-of-type(2) {
+    animation: 1s blink infinite 0.6666s;
+}
+
+.typing-indicator span:nth-of-type(3) {
+    animation: 1s blink infinite 0.9999s;
+}
+
+@keyframes blink {
+    50% { opacity: 1; }
+}
+
+code {
+    background-color: rgba(0,0,0,0.05);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+}
+
+pre {
+    background-color: rgba(0,0,0,0.05);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .main-container {
+        flex-direction: column;
+    }
+    
+    .thinking-container {
+        height: 30vh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .message {
+        max-width: 90%;
+    }
+    
+    header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
