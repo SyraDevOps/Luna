@@ -169,6 +169,10 @@ class LunaTrainer:
     
     def train_supervised(self, train_data, valid_data=None, use_wandb=False, num_train_epochs=None, output_dir=None, dynamic_hp_opt=False):
         """Treina o modelo usando aprendizado supervisionado"""
+        # Importar wandb logo no início para evitar o UnboundLocalError
+        if use_wandb and is_wandb_available():
+            import wandb
+            
         try:
             if not train_data:
                 raise ValueError("Dados de treinamento vazios.")
@@ -238,7 +242,7 @@ class LunaTrainer:
             save_total_limit = getattr(self.config.training, "save_total_limit", 1)
             gradient_accumulation = getattr(self.config.training, "gradient_accumulation_steps", 1)
             
-            # Configurar argumentos de treinamento
+            # Configurar argumentos de treinamento - VERSÃO COMPATÍVEL
             training_args = TrainingArguments(
                 output_dir=self.output_dir,
                 num_train_epochs=n_epochs,
@@ -250,12 +254,17 @@ class LunaTrainer:
                 save_total_limit=save_total_limit,
                 logging_steps=logging_steps,
                 gradient_accumulation_steps=gradient_accumulation,
-                evaluation_strategy="steps" if eval_dataset else "no",
-                save_strategy="steps",
+                # Remover parâmetros incompatíveis com versões mais antigas
+                # evaluation_strategy="steps" if eval_dataset else "no",
+                # save_strategy="steps",
                 load_best_model_at_end=True if eval_dataset else False,
                 report_to="wandb" if use_wandb else "none",
                 push_to_hub=False
             )
+            
+            # Adicionar manualmente avaliação se o dataset estiver disponível
+            if eval_dataset:
+                training_args.eval_steps = save_steps  # Avaliar a cada save_steps
             
             # Criar data collator para modelagem de linguagem
             data_collator = DataCollatorForLanguageModeling(
@@ -325,8 +334,10 @@ class LunaTrainer:
         except Exception as e:
             self.logger.error(f"Erro durante o treinamento: {str(e)}")
             traceback.print_exc()
-            if use_wandb and wandb.run is not None:
-                wandb.finish()
+            if use_wandb and is_wandb_available():
+                import wandb  # Reimportar aqui para garantir
+                if wandb.run is not None:
+                    wandb.finish()
             return {"success": False, "error": str(e)}
     
     def _save_model_as_pt(self, trained_model):
