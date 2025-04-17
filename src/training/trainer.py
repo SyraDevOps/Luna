@@ -242,7 +242,7 @@ class LunaTrainer:
             save_total_limit = getattr(self.config.training, "save_total_limit", 1)
             gradient_accumulation = getattr(self.config.training, "gradient_accumulation_steps", 1)
             
-            # Configurar argumentos de treinamento - VERSÃO COMPATÍVEL
+            # Configurar argumentos de treinamento - Versão corrigida
             training_args = TrainingArguments(
                 output_dir=self.output_dir,
                 num_train_epochs=n_epochs,
@@ -254,17 +254,18 @@ class LunaTrainer:
                 save_total_limit=save_total_limit,
                 logging_steps=logging_steps,
                 gradient_accumulation_steps=gradient_accumulation,
-                # Remover parâmetros incompatíveis com versões mais antigas
-                # evaluation_strategy="steps" if eval_dataset else "no",
-                # save_strategy="steps",
-                load_best_model_at_end=True if eval_dataset else False,
+                # Definir estratégias consistentes (ou ambas "steps" ou ambas "no")
+                evaluation_strategy="steps" if eval_dataset else "no",
+                save_strategy="steps",
+                load_best_model_at_end=eval_dataset is not None,  # Só ativar se tiver dataset de validação
+                eval_steps=save_steps if eval_dataset else None,  # Definir explicitamente os passos de avaliação
                 report_to="wandb" if use_wandb else "none",
                 push_to_hub=False
             )
-            
-            # Adicionar manualmente avaliação se o dataset estiver disponível
-            if eval_dataset:
-                training_args.eval_steps = save_steps  # Avaliar a cada save_steps
+
+            # Remover bloco manual abaixo que está causando conflito
+            # if eval_dataset:
+            #     training_args.eval_steps = save_steps  # Avaliar a cada save_steps
             
             # Criar data collator para modelagem de linguagem
             data_collator = DataCollatorForLanguageModeling(
