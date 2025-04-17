@@ -242,7 +242,7 @@ class LunaTrainer:
             save_total_limit = getattr(self.config.training, "save_total_limit", 1)
             gradient_accumulation = getattr(self.config.training, "gradient_accumulation_steps", 1)
             
-            # Configurar argumentos de treinamento - Versão corrigida
+            # Configurar argumentos de treinamento - Versão compatível básica
             training_args = TrainingArguments(
                 output_dir=self.output_dir,
                 num_train_epochs=n_epochs,
@@ -254,11 +254,11 @@ class LunaTrainer:
                 save_total_limit=save_total_limit,
                 logging_steps=logging_steps,
                 gradient_accumulation_steps=gradient_accumulation,
-                # Definir estratégias consistentes (ou ambas "steps" ou ambas "no")
-                evaluation_strategy="steps" if eval_dataset else "no",
-                save_strategy="steps",
-                load_best_model_at_end=eval_dataset is not None,  # Só ativar se tiver dataset de validação
-                eval_steps=save_steps if eval_dataset else None,  # Definir explicitamente os passos de avaliação
+                # Remover parâmetros incompatíveis
+                # evaluation_strategy="steps" if eval_dataset else "no",
+                # save_strategy="steps",
+                # load_best_model_at_end=eval_dataset is not None,
+                # eval_steps=save_steps if eval_dataset else None,
                 report_to="wandb" if use_wandb else "none",
                 push_to_hub=False
             )
