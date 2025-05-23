@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 
 setup(
     name='luna_project',
-    version='0.2.0',
+    version='2.6.4',
     author='Syra Team',
-    author_email='your.email@example.com',
+    author_email='Syradevops@gmail.com',
     description='Sistema de diálogo adaptativo e dinâmico LunaGPT',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='https://github.com/yourusername/lunagpt',
+    url='https://github.com/SyraDevOps/lunagpt',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     install_requires=[
