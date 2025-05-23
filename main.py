@@ -2,23 +2,20 @@
 # -*- coding: utf-8 -*-
 """
 LunaGPT - Sistema de Diálogo Adaptativo e Dinâmico
-
-Descrição:
-    Sistema de IA conversacional com recursos avançados:
-      - Camada State-Space para adaptação dinâmica
-      - Salvamento multiformato (incluindo exportação ONNX)
-      - Proatividade contextual com sugestões baseadas em regex
-      - Otimizações no fluxo de treinamento e callbacks
 """
-
 import os
+import sys
 import argparse
 import logging
-import glob
-from pathlib import Path
-import importlib
+import time
 import nltk
-nltk.download('punkt')
+from pathlib import Path
+
+# Baixar recursos necessários do NLTK
+try:
+    nltk.download('punkt', quiet=True)
+except:
+    pass
 
 from src.config.config import Config
 from src.models.luna_model import LunaModel
@@ -43,47 +40,62 @@ def ensure_data_directories():
     
     # Criar arquivo .gitkeep para garantir que o diretório seja mantido no repositório
     for directory in directories:
-        gitkeep_file = os.path.join(directory, ".gitkeep")
-        if not os.path.exists(gitkeep_file):
-            with open(gitkeep_file, "w") as f:
+        gitkeep_path = os.path.join(directory, ".gitkeep")
+        if not os.path.exists(gitkeep_path):
+            with open(gitkeep_path, "w") as f:
                 f.write("")
 
 def load_data_from_directory(directory):
+    """Carrega dados de um diretório"""
     data = []
+    if not os.path.exists(directory):
+        logger.warning(f"Diretório não encontrado: {directory}")
+        return data
+        
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
-        if os.path.isfile(filepath) and filename.endswith(".txt"):
-            with open(filepath, "r", encoding="utf-8") as file:
-                data.extend(file.readlines())
+        if os.path.isfile(filepath):
+            try:
+                from src.utils.file_utils import load_file
+                file_data = load_file(filepath)
+                data.extend(file_data)
+            except Exception as e:
+                logger.error(f"Erro ao carregar {filepath}: {str(e)}")
+    
     if not data:
-        logger.warning(f"Nenhum dado encontrado em: {directory}")
-        return []
-    logger.info(f"Carregados {len(data)} linhas de {directory}")
-    return [line.strip() for line in data if line.strip()]
+        logger.warning(f"Nenhum dado encontrado em {directory}")
+    
+    logger.info(f"Carregados {len(data)} arquivos de {directory}")
+    return data
 
 def create_model(args, config):
     """Criar novo modelo e ambiente com dataset inicial"""
-    model_name = args.model  # Alterado de args.name para args.model
+    model_name = args.model
     logger.info(f"Criando novo modelo: {model_name}")
     
     # Carregar dados iniciais para o tokenizer
     train_data = []
     if args.train_data:
-        train_data, _ = load_data_from_patterns(args.train_data, auto_split=False)
+        train_data, _ = load_data_from_patterns([args.train_data], auto_split=False)
     
     if not train_data:
-        logger.warning("Nenhum dado de treinamento fornecido. Usando amostra padrão para inicializar o tokenizer.")
+        train_data = load_data_from_directory("data/train")
+    
+    if not train_data:
+        # Dados de exemplo mínimos
         train_data = [
-            "Este é um exemplo de texto em português para treinar o modelo.",
-            "O sistema LunaGPT é projetado para diálogo adaptativo em português.",
-            "Processamento de linguagem natural é uma área fascinante da inteligência artificial."
+            "Olá! Como posso ajudá-lo hoje?",
+            "Pergunta: O que é inteligência artificial? Resposta: IA é a simulação de processos de inteligência humana por máquinas.",
+            "Estou aqui para conversar e responder suas perguntas."
         ]
+        logger.warning("Usando dados de exemplo mínimos para o tokenizer")
     
     logger.info(f"Utilizando {len(train_data)} amostras para inicialização do tokenizer")
     
     # Treinar tokenizer
     tokenizer = LunaTokenizer(config)
-    tokenizer.train_and_save(train_data, os.path.join("models", model_name, "tokenizer"))
+    tokenizer_dir = os.path.join("models", model_name, "tokenizer")
+    tokenizer.train_and_save(train_data, tokenizer_dir)
     tokenizer.configure_special_tokens()
     
     # Criar modelo do zero
@@ -100,47 +112,22 @@ def create_model(args, config):
 def load_training_and_validation_data(args):
     """Carregar dados de treinamento e validação"""
     if args.train_data:
-        train_patterns = args.train_data
-        logger.info(f"Usando padrões de dados personalizados: {train_patterns}")
+        train_patterns = [args.train_data]
     else:
-        # Padrões padrão para vários formatos de arquivo
-        train_patterns = [
-            "data/train/*.txt", 
-            "data/train/*.csv", 
-            "data/train/*.json",
-            "data/train/*.jsonl",
-            "data/train/*.pdf",
-            "data/train/*.docx"
-        ]
-        logger.info(f"Usando padrões de dados padrão: {train_patterns}")
+        train_patterns = ["data/train/*.txt", "data/train/*.csv", "data/train/*.json", "data/train/*.pdf"]
     
     if args.valid_data:
-        valid_patterns = args.valid_data
+        valid_patterns = [args.valid_data]
         auto_split = False
-        logger.info(f"Usando padrões de validação personalizados: {valid_patterns}")
     else:
-        # Padrões padrão para vários formatos de arquivo
-        valid_patterns = [
-            "data/valid/*.txt", 
-            "data/valid/*.csv", 
-            "data/valid/*.json",
-            "data/valid/*.jsonl",
-            "data/valid/*.pdf",
-            "data/valid/*.docx"
-        ]
-        # Se não houver arquivo de validação, dividimos os dados de treino
-        files_exist = any(len(glob.glob(pattern)) > 0 for pattern in valid_patterns)
-        auto_split = not files_exist
-        if auto_split:
-            logger.info("Sem dados de validação explícitos. Dividindo dados de treino automaticamente.")
-        else:
-            logger.info(f"Usando padrões de validação padrão: {valid_patterns}")
+        valid_patterns = ["data/valid/*.txt", "data/valid/*.csv", "data/valid/*.json"]
+        auto_split = True
     
     # Carregar dados
     train_data, auto_valid_data = load_data_from_patterns(train_patterns, auto_split=auto_split)
     
     if not auto_split:
-        valid_data = load_data_from_patterns(valid_patterns, auto_split=False)[0]
+        valid_data, _ = load_data_from_patterns(valid_patterns, auto_split=False)
     else:
         valid_data = auto_valid_data
     
@@ -154,341 +141,244 @@ def train_model(args, config):
     # Inicializar wandb se habilitado na configuração
     use_wandb = config.training.use_wandb
     if use_wandb:
-        use_wandb = initialize_wandb(
-            config=vars(config),
-            run_name=f"train_{model_name}",
-            project_name="lunagpt"
-        )
+        initialize_wandb(config, f"train_{model_name}")
     
     # Carregar dados
-    train_data = []
-    valid_data = []
-    
-    if args.train_data:
-        train_data, valid_data = load_data_from_patterns(args.train_data)
+    train_data, valid_data = load_training_and_validation_data(args)
     
     if not train_data:
-        logger.error("Nenhum dado de treinamento fornecido. Use --train_data.")
-        return False
+        logger.error("Nenhum dado de treinamento encontrado!")
+        return
     
     # Inicializar trainer
     trainer = LunaTrainer(model_name, config)
     
-    # Usar AutoML se solicitado
-    if args.automl:
-        logger.info("Iniciando otimização de hiperparâmetros com AutoML")
-        automl_config = {
-            "study_name": f"lunagpt_automl_{model_name}",
-            "n_trials": args.automl_trials,
-            "metric": "validation_loss",
-            "direction": "minimize"
-        }
-        result = trainer.train_with_automl(
-            train_data, 
-            valid_data, 
-            automl_config=automl_config,
-            use_wandb=use_wandb, 
+    # Treinar modelo
+    try:
+        result = trainer.train_supervised(
+            train_data=train_data,
+            valid_data=valid_data,
+            use_wandb=use_wandb,
             num_train_epochs=args.epochs
         )
-    else:
-        # Treinar modelo com ou sem otimização dinâmica
-        result = trainer.train_supervised(
-            train_data, 
-            valid_data, 
-            use_wandb=use_wandb, 
-            num_train_epochs=args.epochs,
-            dynamic_hp_opt=args.dynamic_hp_opt
-        )
-    
-    if result and result.get("success", False):
-        logger.info(f"Treinamento do modelo {model_name} concluído com sucesso.")
-        return True
-    else:
-        logger.error(f"Treinamento do modelo {model_name} falhou.")
-        return False
+        
+        if result.get("success"):
+            logger.info("Treinamento concluído com sucesso!")
+        else:
+            logger.error(f"Erro durante treinamento: {result.get('error', 'Erro desconhecido')}")
+            
+    except Exception as e:
+        logger.error(f"Erro durante treinamento: {str(e)}")
 
 def chat_with_model(args, config):
-    """Iniciar sessão de chat com modelo treinado"""
+    """Iniciar chat interativo com modelo"""
     model_name = args.model
-    logger.info(f"Iniciando chat com o modelo: {model_name}")
-    
-    # Verificar se o modelo existe
     model_dir = os.path.join("models", model_name)
+    
     if not os.path.exists(model_dir):
-        logger.error(f"Modelo {model_name} não encontrado em {model_dir}")
+        logger.error(f"Modelo {model_name} não encontrado. Use 'create' primeiro.")
         return
     
-    # Ajustar configuração para modo leve se especificado
-    if hasattr(args, 'lightweight') and args.lightweight:
-        logger.info("Modo leve ativado: ajustando configurações para menor uso de memória")
-        # Reduzir configurações
-        config.training.per_device_train_batch_size = 1
-        config.training.per_device_eval_batch_size = 1
-        config.training.gradient_accumulation_steps = 8
-        if hasattr(config.model, 'num_hidden_layers'):
-            config.model.num_hidden_layers = min(config.model.num_hidden_layers, 4)
-        if hasattr(config.model, 'hidden_size'):
-            config.model.hidden_size = min(config.model.hidden_size, 256)
+    logger.info(f"Iniciando chat com modelo: {model_name}")
     
-    # Forçar dispositivo específico se especificado
-    if hasattr(args, 'device') and args.device != "auto":
-        os.environ['FORCE_DEVICE'] = args.device
-        if args.device == "cpu":
-            os.environ['CUDA_VISIBLE_DEVICES'] = ""  # Desabilitar CUDA
-        logger.info(f"Dispositivo forçado: {args.device}")
-    
-    # Configurar persona se especificada
-    persona = args.persona if args.persona else config.persona.default
-    
-    # Inicializar chat
-    chat_instance = LunaChat(model_name, config, persona=persona)
-    
-    # Iniciar chat com contexto inicial se especificado
-    initial_context = args.context if args.context else ""
-    chat_instance.chat(initial_context=initial_context)
-    
-    logger.info("Sessão de chat encerrada")
+    try:
+        # Inicializar chat
+        chat = LunaChat(model_name, config, persona=args.persona)
+        
+        # Iniciar sessão interativa
+        chat.chat()
+        
+    except KeyboardInterrupt:
+        logger.info("Chat interrompido pelo usuário")
+    except Exception as e:
+        logger.error(f"Erro durante chat: {str(e)}")
 
 def refine_model(args, config):
-    """Refinar modelo com feedback"""
+    """Refinar modelo com base no feedback"""
     model_name = args.model
-    logger.info(f"Iniciando refinamento do modelo: {model_name}")
+    logger.info(f"Refinando modelo: {model_name}")
     
-    # Ajustar configuração para modo leve se especificado
-    if hasattr(args, 'lightweight') and args.lightweight:
-        logger.info("Modo leve ativado: ajustando configurações para menor uso de memória")
-        # Reduzir configurações
-        config.training.per_device_train_batch_size = 1
-        config.training.per_device_eval_batch_size = 1
-        config.training.gradient_accumulation_steps = 8
-        if hasattr(config.model, 'num_hidden_layers'):
-            config.model.num_hidden_layers = min(config.model.num_hidden_layers, 4)
-        if hasattr(config.model, 'hidden_size'):
-            config.model.hidden_size = min(config.model.hidden_size, 256)
-    
-    # Forçar dispositivo específico se especificado
-    if hasattr(args, 'device') and args.device != "auto":
-        os.environ['FORCE_DEVICE'] = args.device
-        if args.device == "cpu":
-            os.environ['CUDA_VISIBLE_DEVICES'] = ""  # Desabilitar CUDA
-        logger.info(f"Dispositivo forçado: {args.device}")
-    
-    # Carregar sistema de feedback
-    feedback_system = FeedbackSystem(config)
-    
-    if not feedback_system.needs_update():
-        logger.warning("Feedback insuficiente para refinamento. Necessário pelo menos "
-                      f"{config.feedback.min_samples_for_update} amostras.")
-        return
-    
-    # Inicializar trainer
-    trainer = LunaTrainer(model_name, config)
-    
-    # Atualizar modelo com feedback
-    trainer.update_with_feedback()
-    
-    logger.info(f"Refinamento do modelo {model_name} concluído")
+    try:
+        # Inicializar trainer
+        trainer = LunaTrainer(model_name, config)
+        
+        # Atualizar com feedback
+        result = trainer.update_with_feedback(use_wandb=config.training.use_wandb)
+        
+        if result.get("success"):
+            logger.info("Refinamento concluído com sucesso!")
+        else:
+            logger.info("Nenhuma atualização necessária ou feedback insuficiente")
+            
+    except Exception as e:
+        logger.error(f"Erro durante refinamento: {str(e)}")
 
 def manage_memory(args):
-    """Gerencia o sistema de memória de um modelo"""
-    model_name = args.model
-    action = args.action
-    
-    # Verificar se o modelo existe
-    model_dir = os.path.join("models", model_name)
-    if not os.path.exists(model_dir):
-        logger.error(f"Modelo {model_name} não encontrado")
-        return
-    
-    # Carregar configuração
-    config = Config()
-    
-    # Inicializar sistema de memória
+    """Gerenciar sistema de memória"""
     from src.models.memory_system import MemorySystem
-    memory = MemorySystem(model_name, config)
     
-    if action == 'stats':
-        # Mostrar estatísticas
-        stats = memory.get_memory_statistics()
-        print("\n===== Estatísticas do Sistema de Memória =====")
-        print(f"Modelo: {model_name}")
-        print(f"Memórias episódicas: {stats['episodic_count']}")
-        print(f"Memórias semânticas: {stats['semantic_count']}")
-        print(f"Total de memórias: {stats['total_memories']}")
-        print(f"Tipo de índice: {stats['index_type']}")
-        print(f"Dimensão de embeddings: {stats['embedding_dimension']}")
-        print("============================================\n")
+    model_name = args.model
+    logger.info(f"Gerenciando memória do modelo: {model_name}")
+    
+    try:
+        memory = MemorySystem(model_name)
         
-    elif action == 'clear':
-        # Pedir confirmação
-        confirm = input(f"Tem certeza que deseja limpar TODAS as memórias do modelo {model_name}? (s/N): ")
-        if confirm.lower() == 's':
-            # Limpar memórias
-            memory_dir = os.path.join("models", model_name, "memory")
-            if os.path.exists(memory_dir):
-                import shutil
-                shutil.rmtree(memory_dir)
-                os.makedirs(memory_dir, exist_ok=True)
-                print(f"Memórias do modelo {model_name} foram limpas com sucesso.")
-            else:
-                print(f"O modelo {model_name} não possui memórias.")
-        else:
-            print("Operação cancelada.")
+        if args.action == "stats":
+            stats = memory.get_memory_statistics()
+            logger.info(f"Estatísticas de memória: {stats}")
             
-    elif action == 'import':
-        # Importar documentos
-        if not args.import_dir:
-            logger.error("Diretório de importação não especificado (--import_dir)")
-            return
+        elif args.action == "save":
+            memory.save()
+            logger.info("Memória salva com sucesso")
             
-        import_dir = args.import_dir
-        if not os.path.exists(import_dir):
-            logger.error(f"Diretório {import_dir} não encontrado")
-            return
+        elif args.action == "clear":
+            # Implementar limpeza se necessário
+            logger.info("Funcionalidade de limpeza ainda não implementada")
             
-        # Verificar se LlamaIndex está disponível
-        try:
-            from src.models.knowledge_index import KnowledgeIndex
-            knowledge_index = KnowledgeIndex(model_name)
-            count = knowledge_index.import_from_files(import_dir)
-            print(f"Importados {count} documentos para o índice de conhecimento.")
-        except ImportError:
-            # Fallback para importação básica
-            from src.utils.file_utils import load_data_from_patterns
-            patterns = [os.path.join(import_dir, "*.txt"), 
-                       os.path.join(import_dir, "*.pdf"),
-                       os.path.join(import_dir, "*.docx")]
-            texts = load_data_from_patterns(patterns)
-            for text in texts:
-                memory.add_semantic_memory(text, metadata={"source": "import", "path": import_dir})
-            print(f"Importados {len(texts)} textos para a memória semântica.")
-            
-    # Se houver uma consulta para teste, mostrar recuperação
-    if args.query:
-        print(f"\nTestando recuperação para consulta: '{args.query}'")
-        relevant = memory.retrieve_relevant_memories(args.query, top_k=3)
-        print(f"Encontradas {len(relevant)} memórias relevantes:")
-        for i, mem in enumerate(relevant, 1):
-            print(f"\n{i}. {mem.content[:100]}...")
+    except Exception as e:
+        logger.error(f"Erro ao gerenciar memória: {str(e)}")
 
 def manage_tokens(args):
-    """Gerencia tokens adaptativos"""
-    from src.tools.token_analyzer import analyze_tokens
+    """Gerenciar tokens adaptativos"""
+    model_name = args.model
+    logger.info(f"Gerenciando tokens do modelo: {model_name}")
     
-    if args.analyze:
-        analyze_tokens(args.model, args.min_freq, args.max_tokens, args.add)
-    else:
-        print("Especifique uma ação para gerenciar tokens (--analyze)")
+    try:
+        if args.action == "analyze":
+            from src.tools.token_analyzer import analyze_tokens
+            analyze_tokens(
+                model_name, 
+                min_frequency=args.min_freq, 
+                max_tokens=args.max_tokens,
+                auto_add=args.auto_add
+            )
+        else:
+            logger.error(f"Ação desconhecida: {args.action}")
+            
+    except Exception as e:
+        logger.error(f"Erro ao gerenciar tokens: {str(e)}")
 
 def run_tests():
-    """Executar testes unitários"""
-    logger.info("Executando testes unitários...")
-    import unittest
-    from src.tests.test_all import run_all_tests
-    result = run_all_tests()
-    logger.info(f"Resultado dos testes: {'Sucesso' if result == 0 else 'Falha'}")
-    return result
+    """Executar testes do sistema"""
+    logger.info("Executando testes do sistema...")
+    
+    try:
+        from src.tests.test_all import run_all_tests
+        result = run_all_tests()
+        
+        if result == 0:
+            logger.info("Todos os testes passaram!")
+        else:
+            logger.error("Alguns testes falharam")
+            
+        return result
+        
+    except Exception as e:
+        logger.error(f"Erro ao executar testes: {str(e)}")
+        return 1
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='LunaGPT: Sistema de Diálogo Neural Adaptativo')
-    subparsers = parser.add_subparsers(dest='command', help='Comandos disponíveis', required=True)
+    """Analisar argumentos da linha de comando"""
+    parser = argparse.ArgumentParser(description="LunaGPT - Sistema de Diálogo Adaptativo")
     
-    # Parser para criar modelo
-    create_parser = subparsers.add_parser('create', help='Criar novo modelo')
-    create_parser.add_argument('--model', type=str, required=True, help='Nome do modelo a ser criado')
-    create_parser.add_argument('--base', type=str, default=None, help='Modelo base para inicialização')
-    create_parser.add_argument('--config', type=str, default=None, help='Caminho para arquivo de configuração')
-    create_parser.add_argument('--train_data', type=str, default=None, help='Padrão de caminhos para dados de treinamento')
+    subparsers = parser.add_subparsers(dest="command", help="Comandos disponíveis")
     
-    # Parser para treinar modelo
-    train_parser = subparsers.add_parser('train', help='Treinar modelo existente')
-    train_parser.add_argument('--model', type=str, required=True, help='Nome do modelo a ser treinado')
-    train_parser.add_argument('--train_data', type=str, default=None, help='Padrão de caminhos para dados de treinamento')
-    train_parser.add_argument('--epochs', type=int, default=None, help='Número de épocas de treinamento')
-    train_parser.add_argument('--dynamic_hp_opt', action='store_true', help='Ativar otimização dinâmica de hiperparâmetros')
-    train_parser.add_argument('--automl', action='store_true', help='Usar AutoML para otimização de hiperparâmetros')
-    train_parser.add_argument('--automl_trials', type=int, default=10, help='Número de tentativas para AutoML')
+    # Comando create
+    create_parser = subparsers.add_parser("create", help="Criar novo modelo")
+    create_parser.add_argument("--model", required=True, help="Nome do modelo")
+    create_parser.add_argument("--train-data", help="Padrão de arquivos de treino")
     
-    # Comando 'chat'
-    parser_chat = subparsers.add_parser("chat", help="Inicia modo de chat")
-    parser_chat.add_argument("--model", type=str, required=True, help="Nome do modelo para chat")
-    parser_chat.add_argument("--context", type=str, help="Contexto inicial")
-    parser_chat.add_argument("--persona", type=str, choices=["tecnico", "casual", "formal"], 
-                           help="Estilo de resposta")
+    # Comando train
+    train_parser = subparsers.add_parser("train", help="Treinar modelo")
+    train_parser.add_argument("--model", required=True, help="Nome do modelo")
+    train_parser.add_argument("--train-data", help="Padrão de arquivos de treino")
+    train_parser.add_argument("--valid-data", help="Padrão de arquivos de validação")
+    train_parser.add_argument("--epochs", type=int, default=3, help="Número de épocas")
     
-    # Comando 'refine'
-    parser_refine = subparsers.add_parser("refine", help="Realiza refinamento contínuo com feedback")
-    parser_refine.add_argument("--model", type=str, required=True, help="Nome do modelo a refinar")
+    # Comando chat
+    chat_parser = subparsers.add_parser("chat", help="Chat interativo")
+    chat_parser.add_argument("--model", required=True, help="Nome do modelo")
+    chat_parser.add_argument("--persona", default="casual", help="Persona para o chat")
     
-    # Comando 'memory'
-    memory_parser = subparsers.add_parser('memory', help='Gerenciar sistema de memória')
-    memory_parser.add_argument('--model', required=True, help='Nome do modelo')
-    memory_parser.add_argument('--action', choices=['stats', 'clear', 'import'], required=True, 
-                         help='Ação a executar no sistema de memória')
-    memory_parser.add_argument('--import_dir', help='Diretório para importar documentos (para action=import)')
-    memory_parser.add_argument('--query', help='Consulta para testar recuperação de memória')
+    # Comando refine
+    refine_parser = subparsers.add_parser("refine", help="Refinar modelo com feedback")
+    refine_parser.add_argument("--model", required=True, help="Nome do modelo")
     
-    # Comando 'tokens'
-    tokens_parser = subparsers.add_parser('tokens', help='Gerenciar tokens adaptativos')
-    tokens_parser.add_argument('--model', required=True, help='Nome do modelo')
-    tokens_parser.add_argument('--analyze', action='store_true', help='Analisar tokens candidatos')
-    tokens_parser.add_argument('--min_freq', type=int, default=10, help='Frequência mínima para tokens')
-    tokens_parser.add_argument('--max_tokens', type=int, default=100, help='Máximo de tokens a considerar')
-    tokens_parser.add_argument('--add', action='store_true', help='Adicionar tokens automaticamente')
+    # Comando memory
+    memory_parser = subparsers.add_parser("memory", help="Gerenciar memória")
+    memory_parser.add_argument("--model", required=True, help="Nome do modelo")
+    memory_parser.add_argument("--action", choices=["stats", "save", "clear"], 
+                             default="stats", help="Ação a executar")
     
-    # Adicionar opções de performance para todos os comandos que usam modelo
-    for cmd_parser in [train_parser, parser_chat, parser_refine, memory_parser, tokens_parser]:
-        cmd_parser.add_argument("--lightweight", action="store_true", 
-                            help="Modo leve para máquinas com recursos limitados")
-        cmd_parser.add_argument("--device", type=str, choices=["auto", "cpu", "cuda", "mps"],
-                            default="auto", help="Dispositivo para execução (auto=detectar)")
-        cmd_parser.add_argument("--disable_lightweight", action="store_true", 
-                          help="Desativa a otimização automática para hardware leve")
+    # Comando tokens
+    tokens_parser = subparsers.add_parser("tokens", help="Gerenciar tokens")
+    tokens_parser.add_argument("--model", required=True, help="Nome do modelo")
+    tokens_parser.add_argument("--action", choices=["analyze"], default="analyze")
+    tokens_parser.add_argument("--min-freq", type=int, default=10, help="Frequência mínima")
+    tokens_parser.add_argument("--max-tokens", type=int, default=100, help="Máximo de tokens")
+    tokens_parser.add_argument("--auto-add", action="store_true", help="Adicionar automaticamente")
     
-    # Comando 'test'
-    parser_test = subparsers.add_parser("test", help="Executa testes unitários")
-    parser_test.add_argument("--minimal", action="store_true", 
-                          help="Executar testes com configurações mínimas para economizar memória")
+    # Comando test
+    test_parser = subparsers.add_parser("test", help="Executar testes")
     
     return parser.parse_args()
 
 def main():
-    # Verificar dependências antes de iniciar
-    from src.utils.dependency_utils import check_and_install_dependencies
-    installed = check_and_install_dependencies()
-    if installed > 0:
-        logger.info(f"Instaladas {installed} dependências faltantes. Reinicializando componentes.")
-        # Se instalou algo, deve reimportar os módulos que foram instalados
-        importlib.invalidate_caches()
-    
+    """Função principal"""
     # Configurar logging
     setup_logging()
     
-    # Verificar diretórios
+    # Garantir estrutura de diretórios
     ensure_data_directories()
+    
+    # Configurar otimizações de memória
+    setup_memory_efficient_training()
+    
+    # Analisar argumentos
+    args = parse_args()
+    
+    if not args.command:
+        logger.error("Nenhum comando especificado. Use --help para ver opções.")
+        return 1
     
     # Carregar configuração
     config = Config()
     
-    # Parsear argumentos
-    args = parse_args()
+    try:
+        if args.command == "create":
+            create_model(args, config)
+            
+        elif args.command == "train":
+            train_model(args, config)
+            
+        elif args.command == "chat":
+            chat_with_model(args, config)
+            
+        elif args.command == "refine":
+            refine_model(args, config)
+            
+        elif args.command == "memory":
+            manage_memory(args)
+            
+        elif args.command == "tokens":
+            manage_tokens(args)
+            
+        elif args.command == "test":
+            return run_tests()
+            
+        else:
+            logger.error(f"Comando desconhecido: {args.command}")
+            return 1
+            
+    except KeyboardInterrupt:
+        logger.info("Operação cancelada pelo usuário")
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Erro durante execução: {str(e)}")
+        return 1
     
-    if args.command == "create":
-        create_model(args, config)
-    elif args.command == "train":
-        train_model(args, config)
-    elif args.command == "chat":
-        chat_with_model(args, config)
-    elif args.command == "refine":
-        refine_model(args, config)
-    elif args.command == "memory":
-        manage_memory(args)
-    elif args.command == "tokens":
-        manage_tokens(args)
-    elif args.command == "test":
-        run_tests()
-    else:
-        logger.error("Comando inválido. Use --help para ver os comandos disponíveis.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
