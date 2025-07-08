@@ -46,7 +46,7 @@ class LunaChat:
         
         # Carregar modelo e tokenizer
         try:
-            self.model = LunaModel.from_pretrained(self.model_dir)
+            self.model = LunaModel.from_pretrained(self.model_dir, config=self.config)
             tokenizer_instance = LunaTokenizer(self.config)
             self.tokenizer = tokenizer_instance.load(os.path.join(self.model_dir, "tokenizer"))
         except Exception as e:
@@ -158,7 +158,7 @@ class LunaChat:
                 styled_prompt = self._apply_persona_style(prompt)
             
             # Preparar input - AQUI ESTÁ A CORREÇÃO
-            inputs = self.tokenizer(
+            inputs = self.tokenizer.tokenizer(
                 styled_prompt,
                 return_tensors="pt",
                 truncation=True,
