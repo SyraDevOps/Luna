@@ -53,8 +53,11 @@ def get_model(model_name):
             return None
         
         logger.info(f"Carregando modelo {model_name}")
-        # CORREÇÃO: Usar from_pretrained em vez do construtor
-        model = LunaModel.from_pretrained(model_path)
+        
+        # Criar config antes de carregar o modelo
+        config = Config()
+        model = LunaModel.from_pretrained(model_path, config)
+        
         model_cache[model_name] = model
         return model
     except Exception as e:
