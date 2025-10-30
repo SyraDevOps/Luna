@@ -1,7 +1,7 @@
 # Integration Fixes Documentation
 
 ## Problema Original (Problem Statement)
-O problema reportado foi: "investigue e corrija todos os erros de integração entre os arquivos, concertando os erros da memoria e interação pelo chat e terminal, com tudo atualizado e bem configurado, arrume todas as falhas, problemas e integrações que estejam incorretas na criação treinament e uso do modelo"
+O problema reportado foi: "investigue e corrija todos os erros de integração entre os arquivos, consertando os erros da memoria e interação pelo chat e terminal, com tudo atualizado e bem configurado, arrume todas as falhas, problemas e integrações que estejam incorretas na criação treinamento e uso do modelo"
 
 Tradução: Investigate and fix all integration errors between files, fixing memory errors and interaction through chat and terminal, with everything updated and well configured, fix all failures, problems and incorrect integrations in model creation, training and usage.
 
