@@ -47,8 +47,9 @@ class LunaChat:
         # Carregar modelo e tokenizer
         try:
             self.model = LunaModel.from_pretrained(self.model_dir, config=self.config)
-            tokenizer_instance = LunaTokenizer(self.config)
-            self.tokenizer = tokenizer_instance.load(os.path.join(self.model_dir, "tokenizer"))
+            self.luna_tokenizer = LunaTokenizer.load(os.path.join(self.model_dir, "tokenizer"), self.config)
+            # Manter referência direta ao tokenizer do HuggingFace para compatibilidade
+            self.tokenizer = self.luna_tokenizer.tokenizer
         except Exception as e:
             logger.error(f"Erro ao carregar modelo: {str(e)}")
             raise
@@ -68,7 +69,7 @@ class LunaChat:
         self.proactive_messenger.start_monitoring()
         
         # Inicializar tokenizer adaptativo
-        self.adaptive_tokenizer = AdaptiveTokenizer(model_name, config, self.tokenizer.tokenizer)
+        self.adaptive_tokenizer = AdaptiveTokenizer(model_name, config, self.tokenizer)
         self.tokens_learning_active = getattr(config, "enable_tokens_learning", True)
         
         # Usar frequência definida na configuração (7 mensagens)
@@ -157,8 +158,8 @@ class LunaChat:
                 print("\n🔍 MEMÓRIA: Nenhum contexto relevante encontrado para esta pergunta.")
                 styled_prompt = self._apply_persona_style(prompt)
             
-            # Preparar input - AQUI ESTÁ A CORREÇÃO
-            inputs = self.tokenizer.tokenizer(
+            # Preparar input
+            inputs = self.tokenizer(
                 styled_prompt,
                 return_tensors="pt",
                 truncation=True,
@@ -179,7 +180,7 @@ class LunaChat:
             )
             
             # Decodificar resposta
-            full_response = self.tokenizer.tokenizer.decode(output[0], skip_special_tokens=True)
+            full_response = self.tokenizer.decode(output[0], skip_special_tokens=True)
             
             # Extrair apenas a resposta gerada
             raw_response = self._extract_response(styled_prompt, full_response)

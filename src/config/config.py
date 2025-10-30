@@ -7,6 +7,22 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 @dataclass
+class TokenizerConfig:
+    """Configuração do tokenizer"""
+    vocab_size: int = 32000
+    max_length: int = 2048
+    min_frequency: int = 2
+    special_tokens: Dict[str, str] = field(default_factory=lambda: {
+        "pad_token": "<pad>",
+        "unk_token": "<unk>",
+        "bos_token": "<bos>",
+        "eos_token": "<eos>",
+        "sep_token": "<sep>",
+        "cls_token": "<cls>",
+        "mask_token": "<mask>"
+    })
+
+@dataclass
 class ModelConfig:
     """Configuração do modelo Luna"""
     model_name: str = "luna_model"
@@ -131,6 +147,7 @@ class Config:
             config_path: Caminho para arquivo de configuração JSON (opcional)
         """
         # Configurações padrão
+        self.tokenizer = TokenizerConfig()
         self.model = ModelConfig()
         self.training = TrainingConfig()
         self.feedback = FeedbackConfig()
