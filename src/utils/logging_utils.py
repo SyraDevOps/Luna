@@ -8,8 +8,17 @@ import traceback
 # Configuração inicial do logger (será reconfigurado por setup_logging)
 logger = logging.getLogger(__name__)
 
-def setup_logging(level: int = logging.INFO, log_dir: Optional[str] = None):
-    """Configura o sistema de logging"""
+def setup_logging(level: str = "INFO", log_dir: Optional[str] = None):
+    """Configura o sistema de logging
+    
+    Args:
+        level: Nível de logging (DEBUG, INFO, WARNING, ERROR)
+        log_dir: Diretório para salvar logs
+    """
+    # Converter string para nível de logging
+    if isinstance(level, str):
+        level = getattr(logging, level.upper(), logging.INFO)
+    
     # Criar diretório de logs se não existir
     if log_dir is None:
         log_dir = os.path.join(os.getcwd(), 'logs')
@@ -34,11 +43,16 @@ def setup_logging(level: int = logging.INFO, log_dir: Optional[str] = None):
     # Configurar root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
+    
+    # Remover handlers existentes para evitar duplicação
+    root_logger.handlers.clear()
+    
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     
     # Registrar início do log
     logging.getLogger(__name__).info(f"Log iniciado em {log_file}")
+    logging.getLogger(__name__).info(f"Nível de log: {logging.getLevelName(level)}")
     
     cleanup_old_logs(log_dir=log_dir)
     
