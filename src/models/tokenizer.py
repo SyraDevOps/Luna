@@ -20,10 +20,17 @@ class LunaTokenizer:
             tokenizer_path: Caminho para tokenizer pré-treinado (opcional)
         """
         self.config = config
-        if config is not None and hasattr(config, "model") and hasattr(config.model, "vocab_size"):
-            self.vocab_size = config.model.vocab_size
+        # Tentar obter vocab_size de várias fontes
+        if config is not None:
+            if hasattr(config, "tokenizer") and hasattr(config.tokenizer, "vocab_size"):
+                self.vocab_size = config.tokenizer.vocab_size
+            elif hasattr(config, "model") and hasattr(config.model, "vocab_size"):
+                self.vocab_size = config.model.vocab_size
+            else:
+                self.vocab_size = 32000
         else:
             self.vocab_size = 32000
+        
         self.tokenizer = None
         self.special_tokens = {
             "pad_token": "<pad>",

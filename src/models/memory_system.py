@@ -92,15 +92,9 @@ class MemorySystem:
         
     def _load_embedding_model(self):
         """Carrega modelo de embeddings"""
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            try:
-                # Usar modelo multilíngue para melhor suporte a diferentes idiomas
-                model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
-                self.embedding_dim = model.get_sentence_embedding_dimension()
-                logger.info(f"Modelo de embeddings carregado com dimensão {self.embedding_dim}")
-                return model
-            except Exception as e:
-                logger.warning(f"Erro ao carregar modelo de embeddings: {str(e)}")
+        # Desabilitar carregamento de modelos em ambiente sem rede
+        # ou quando SentenceTransformers não está disponível
+        logger.info("Usando embeddings simplificados (sem modelo externo)")
         return None
         
     def _init_memory_system(self):

@@ -5,8 +5,32 @@ import torch
 import torch.nn as nn
 from typing import List, Optional, Dict, Union, Tuple, Any
 from transformers import Trainer, TrainingArguments, DataCollatorForLanguageModeling, AutoTokenizer
-from datasets import Dataset
-from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
+
+try:
+    from datasets import Dataset
+    DATASETS_AVAILABLE = True
+except ImportError:
+    DATASETS_AVAILABLE = False
+    Dataset = None
+    logger.warning("datasets library not available. Training may be limited.")
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    # Fallback tqdm if not available
+    class tqdm:
+        def __init__(self, iterable=None, *args, **kwargs):
+            self.iterable = iterable
+        def __iter__(self):
+            return iter(self.iterable) if self.iterable else iter([])
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def update(self, n=1):
+            pass
 
 from src.models.luna_model import LunaModel
 from src.models.tokenizer import LunaTokenizer
@@ -17,9 +41,15 @@ from src.utils.callbacks import CustomTrainingCallback
 from src.utils.hardware_utils import detect_hardware, setup_memory_efficient_training
 from src.models.adaptive_tokenizer import AdaptiveTokenizer
 from src.utils.wandb_utils import initialize_wandb, is_wandb_available
-from src.optimization.automl_hyperparams import LunaAutoML, DynamicHyperparamOptimizer
 
-logger = logging.getLogger(__name__)
+try:
+    from src.optimization.automl_hyperparams import LunaAutoML, DynamicHyperparamOptimizer
+    AUTOML_AVAILABLE = True
+except ImportError:
+    AUTOML_AVAILABLE = False
+    LunaAutoML = None
+    DynamicHyperparamOptimizer = None
+    logger.warning("AutoML dependencies not available. AutoML features disabled.")
 
 class LunaTrainer:
     """Classe de treinamento para modelos Luna"""
