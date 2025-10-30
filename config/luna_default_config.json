@@ -1,0 +1,104 @@
+{
+  "tokenizer": {
+    "vocab_size": 32000,
+    "max_length": 2048,
+    "min_frequency": 2,
+    "special_tokens": {
+      "pad_token": "<pad>",
+      "unk_token": "<unk>",
+      "bos_token": "<bos>",
+      "eos_token": "<eos>",
+      "sep_token": "<sep>",
+      "cls_token": "<cls>",
+      "mask_token": "<mask>"
+    }
+  },
+  "model": {
+    "model_name": "luna_model",
+    "vocab_size": 32000,
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "num_attention_heads": 12,
+    "intermediate_size": 3072,
+    "max_position_embeddings": 2048,
+    "use_moe": true,
+    "num_experts": 8,
+    "top_k_experts": 2,
+    "use_hypernet": true,
+    "use_growing_network": true,
+    "use_state_space": true,
+    "dropout_rate": 0.1,
+    "attention_dropout": 0.1,
+    "initializer_range": 0.02,
+    "layer_norm_eps": 1e-12,
+    "gradient_checkpointing": false,
+    "use_cache": true
+  },
+  "training": {
+    "output_dir": "temp/training",
+    "num_train_epochs": 3,
+    "per_device_train_batch_size": 4,
+    "per_device_eval_batch_size": 4,
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 5e-5,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "logging_steps": 10,
+    "save_steps": 500,
+    "eval_steps": 100,
+    "use_wandb": false,
+    "gradient_checkpointing": false,
+    "fp16": false,
+    "dataloader_num_workers": 0,
+    "use_curriculum": false,
+    "curriculum_stages": 3,
+    "adam_beta1": 0.9,
+    "adam_beta2": 0.999,
+    "adam_epsilon": 1e-8,
+    "max_grad_norm": 1.0
+  },
+  "feedback": {
+    "feedback_file": "data/feedback.jsonl",
+    "memory_file": "data/memory.jsonl",
+    "quality_threshold": 4,
+    "min_samples_for_update": 10,
+    "collect_user_feedback": true,
+    "feedback_weight": 1.0
+  },
+  "rag": {
+    "use_rag": true,
+    "index_path": "data/rag_index",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "top_k_retrieval": 5,
+    "similarity_threshold": 0.7,
+    "max_context_length": 1024
+  },
+  "persona": {
+    "default_persona": "casual",
+    "available_personas": [
+      "casual",
+      "tecnico",
+      "formal",
+      "amigavel",
+      "profissional"
+    ],
+    "persona_config_file": "config/personas.json"
+  },
+  "memory": {
+    "memory_file": "data/memory.jsonl",
+    "max_memory_entries": 10000,
+    "memory_retention_days": 30,
+    "use_semantic_memory": true,
+    "memory_importance_threshold": 0.5
+  },
+  "optimization": {
+    "use_automl": false,
+    "automl_trials": 50,
+    "use_dynamic_batching": true,
+    "use_mixed_precision": false,
+    "use_gradient_clipping": true,
+    "auto_device_map": true,
+    "load_in_8bit": false,
+    "load_in_4bit": false
+  }
+}
